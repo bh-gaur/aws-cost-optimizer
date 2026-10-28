@@ -36,7 +36,10 @@ class BaseScanner(ABC):
     def get_client(self, session: boto3.Session, service_name: str, region: str = None) -> Any:
         """
         Creates a boto3 client configured with adaptive retry logic and exponential backoff.
+        Automatically respects AWS_ENDPOINT_URL if set (e.g. for LocalStack).
         """
+        import os
+
         retry_config = Config(
             retries={
                 "max_attempts": CONFIG.AWS_MAX_ATTEMPTS,
@@ -48,6 +51,11 @@ class BaseScanner(ABC):
         kwargs = {"config": retry_config}
         if region and region != "global":
             kwargs["region_name"] = region
+
+        endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+        if endpoint_url:
+            kwargs["endpoint_url"] = endpoint_url
+
         return session.client(service_name, **kwargs)
 
     @abstractmethod

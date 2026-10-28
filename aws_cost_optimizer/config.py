@@ -66,9 +66,11 @@ class CostConfig:
 
     # --- VPC / Networking ---
     VPC_EIP_IDLE_HOURLY_COST: float = 0.005  # $0.005/hr = ~$3.65/mo
-    VPC_PUBLIC_IPV4_HOURLY_COST: float = 0.005  # All public IPv4 charged since Feb 2024
+    VPC_PUBLIC_IPV4_HOURLY_COST: float = 0.005  # All public IPv4 charged since Feb 2024 ($0.005/hr = ~$3.65/mo)
     VPC_NAT_GATEWAY_HOURLY_BASE: float = 0.045  # $0.045/hr = ~$32.85/mo
     VPC_NAT_IDLE_TRAFFIC_MB_THRESHOLD: float = float(os.getenv("AICO_NAT_TRAFFIC_MB", "10.0"))
+    VPC_INTERFACE_ENDPOINT_HOURLY_AZ: float = float(os.getenv("AICO_VPC_ENDPOINT_HOURLY", "0.01"))  # $0.01/AZ/hr = ~$7.30/AZ/mo
+    VPC_VPN_HOURLY_BASE: float = float(os.getenv("AICO_VPC_VPN_HOURLY", "0.05"))  # $0.05/hr = ~$36.50/mo
 
     # --- ELB ---
     ELB_CLB_HOURLY_BASE: float = 0.025
@@ -99,6 +101,11 @@ class CostConfig:
 
     # --- S3 ---
     S3_MULTIPART_EXPIRATION_DAYS: int = 7
+    S3_STANDARD_STORAGE_COST_PER_GB: float = 0.023  # us-east-1 reference rate ($/GB-mo)
+    S3_STANDARD_IA_COST_PER_GB: float = 0.0125  # us-east-1 reference rate ($/GB-mo)
+    S3_ASSUMED_COLD_DATA_FRACTION: float = float(os.getenv("AICO_S3_COLD_FRACTION", "0.50"))  # Assumed cold data share
+    S3_MIN_AVG_OBJECT_SIZE_KB: float = 128.0  # Standard-IA minimum billable object size
+    S3_MIN_MONTHLY_SAVING_THRESHOLD: float = float(os.getenv("AICO_S3_MIN_SAVINGS", "1.00"))  # Noise filter threshold
 
     # --- Lambda ---
     LAMBDA_INACTIVE_DAYS: int = int(os.getenv("AICO_LAMBDA_DAYS", "90"))

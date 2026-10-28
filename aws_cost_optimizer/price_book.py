@@ -42,7 +42,13 @@ class PriceBook:
         self._cache: Dict[str, float] = {}
 
         try:
-            self._pricing_client = session.client("pricing", region_name="us-east-1")
+            import os
+
+            client_kwargs = {"region_name": "us-east-1"}
+            endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+            if endpoint_url:
+                client_kwargs["endpoint_url"] = endpoint_url
+            self._pricing_client = session.client("pricing", **client_kwargs)
             self._pricing_available = True
         except Exception as e:
             logger.debug(f"Pricing API client initialization failed: {e}")

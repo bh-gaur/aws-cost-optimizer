@@ -26,8 +26,14 @@ def configure_logging(verbose: bool, debug: bool) -> None:
 
 def get_active_regions(session: boto3.Session) -> List[str]:
     """Retrieves all enabled EC2 regions for the account."""
+    import os
+
     try:
-        ec2 = session.client("ec2", region_name="us-east-1")
+        kwargs = {"region_name": "us-east-1"}
+        endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+        if endpoint_url:
+            kwargs["endpoint_url"] = endpoint_url
+        ec2 = session.client("ec2", **kwargs)
         resp = ec2.describe_regions(AllRegions=False)
         return [r["RegionName"] for r in resp.get("Regions", [])]
     except Exception as e:
@@ -84,9 +90,9 @@ Examples:
     )
     parser.add_argument(
         "--format",
-        choices=["table", "csv", "json"],
-        default="table",
-        help="Output format (default: table)",
+        choices=["cards", "table", "csv", "json"],
+        default="cards",
+        help="Console output format: 'cards' (high-contrast cards, default) or 'table' (responsive grid)",
     )
     parser.add_argument(
         "--verbose",
@@ -184,7 +190,8 @@ def main() -> None:
                 print(f"  ⚡ [{svc_name}] ({reg}): Found {len(res)} opportunity(s)")
 
     # 5. Console Report
-    print_console_report(all_findings)
+    console_mode = args.format if args.format in ("cards", "table") else "cards"
+    print_console_report(all_findings, mode=console_mode)
 
     # 6. File Export (CSV or JSON)
     if args.output:
