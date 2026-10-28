@@ -8,6 +8,10 @@ Built from the ground up to eliminate flat estimates, arbitrary floors, false po
 
 ## 🌟 Architecture & Engine Overview
 
+<p align="center">
+  <img src="../diagram.png" alt="AWS Cost Optimizer Architecture Diagram" width="100%">
+</p>
+
 ```
                                  AWS Cost Optimizer Engine
   ┌──────────────────────────────────────────────────────────────────────────────────┐
