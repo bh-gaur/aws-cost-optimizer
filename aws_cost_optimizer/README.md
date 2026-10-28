@@ -9,7 +9,7 @@ Built from the ground up to eliminate flat estimates, arbitrary floors, false po
 ## 🌟 Architecture & Engine Overview
 
 <p align="center">
-  <img src="../diagram.png" alt="AWS Cost Optimizer Architecture Diagram" width="100%">
+  <img src="diagram.png" alt="AWS Cost Optimizer Architecture Diagram" width="100%">
 </p>
 
 ```
@@ -274,6 +274,32 @@ Built from the ground up to eliminate flat estimates, arbitrary floors, false po
 
 ---
 
+### 10. Amazon DynamoDB (`dynamodb.py`)
+
+#### What the Scanner Audits
+* **Capacity Modes & Utilization**: Evaluates tables in `PROVISIONED` mode vs. `PAY_PER_REQUEST` (On-Demand).
+* **CloudWatch Capacity Consumption**: Batches 14-day `ConsumedReadCapacityUnits` and `ConsumedWriteCapacityUnits` across all tables and Global Secondary Indexes (GSIs).
+* **Stale / Unused Global Secondary Indexes (GSIs)**: Identifies GSIs with zero read queries over 14 days that continue to multiply write capacity charges and duplicate storage.
+* **Point-in-Time Recovery (PITR)**: Queries `describe_continuous_backups` to catch non-production tables incurring \$0.20/GB-month continuous backup fees on scratch data.
+* **Table Class Tiering (Standard-IA)**: Audits tables $> 50\text{ GB}$ using the `STANDARD` storage class ($0.25/GB-mo) with low query activity to unlock a 60% storage cost reduction ($0.10/GB-mo).
+* **Time to Live (TTL)**: Identifies growing time-series, log, session, token, and event tables with TTL `DISABLED`.
+
+#### Cost Traps & Flaws in Common Scanners
+* *The Idle Provisioned Table Trap*: Provisioned RCU (\$0.095/RCU-mo) and WCU (\$0.475/WCU-mo) are billed 24/7 regardless of traffic. A table provisioned for 100 RCU / 100 WCU costs \$57.00/month even if 0 requests are made.
+* *The Stale GSI Write Amplifier*: Every item write to a DynamoDB table automatically updates all GSIs. An unused GSI multiplies write costs and consumes storage while delivering zero application value.
+* *Non-Prod Continuous Backups*: PITR is often enabled by default in IaC templates, costing \$20/month per 100 GB on disposable test databases.
+
+#### Production Solution & Mathematical Model
+* **Idle Provisioned Table Math**:
+  $$\text{Utilization} = \frac{\text{ConsumedUnits}_{\text{sum}} / \text{Period}_{\text{seconds}}}{\text{ProvisionedUnits}}$$
+  If both RCU and WCU utilization are $< 5\%$, recommends switching to `PAY_PER_REQUEST` (On-Demand) where idle capacity charges are **\$0.00**:
+  $$\text{Monthly Saving} = (\text{RCU} \times \$0.00013 + \text{WCU} \times \$0.00065) \times 730$$
+* **Stale GSI Elimination**: Identifies GSIs with 0 reads in 14 days and calculates provisioned capacity savings plus write amplification reduction.
+* **Standard-IA Storage Class Savings**:
+  $$\text{Storage Saving} = \text{TableSize}_{\text{GB}} \times (\$0.25 - \$0.10) = \text{TableSize}_{\text{GB}} \times \$0.15/\text{month}$$
+
+---
+
 ## 💻 CLI Usage & Commands
 
 ### Prerequisites
@@ -282,17 +308,27 @@ Built from the ground up to eliminate flat estimates, arbitrary floors, false po
 
 ### Installation
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+# Standard installation
 pip install -r requirements.txt
+
+# Or install natively as a CLI binary
+pip install -e .
 ```
 
 ### Basic Scans
 ```bash
 # Scan default services in current region with high-contrast visual cards (default)
-./venv/bin/python aws_cost_optimizer.py
+aws-cost-optimizer
 
-# Scan specific services in a specific region
+# Scan specific services (e.g. EC2, RDS, DynamoDB, S3) in a specific region
+aws-cost-optimizer --services ec2,ebs,rds,vpc,s3,dynamodb --regions us-east-1
+
+# Display findings in a responsive, auto-wrapping grid table
+aws-cost-optimizer --format table
+```
+
+### Least-Privilege IAM Audit Policy
+A comprehensive, read-only IAM policy for running the scanner is provided in [`iam/readonly-audit-policy.json`](file:///Users/vishnu/learning/b_github/aws-cost-optimizer/iam/readonly-audit-policy.json). Apply this policy to your auditor role or user without needing full administrative access.
 ./venv/bin/python aws_cost_optimizer.py --services ec2,ebs,rds,vpc,s3 --regions us-east-1
 
 # Display findings in a responsive, auto-wrapping grid table
@@ -342,6 +378,8 @@ All thresholds can be customized via environment variables or in [`aws_cost_opti
 | `AICO_NAT_TRAFFIC_MB` | `10.0` | 14-day data transfer threshold (MB) to classify a NAT Gateway as idle |
 | `AICO_S3_COLD_FRACTION` | `0.50` | Assumed fraction of S3 Standard data eligible for Standard-IA migration |
 | `AICO_S3_MIN_SAVINGS` | `1.00` | Minimum monthly savings threshold for S3 findings to drop noise |
+| `AICO_DYNAMODB_IDLE_UTIL` | `0.05` | Threshold for underutilized provisioned DynamoDB capacity (< 5%) |
+| `AICO_DYNAMODB_MIN_SAVINGS`| `1.00` | Minimum monthly savings threshold for DynamoDB findings |
 
 ---
 
@@ -351,10 +389,10 @@ The test suite validates pricing math, CloudWatch batch paginators, guardrails, 
 
 Run the test suite using `pytest`:
 ```bash
-PYTHONPATH=. ./venv/bin/pytest tests/test_aws_cost_optimizer.py
+pytest tests/test_aws_cost_optimizer.py
 ```
 ```
-============================== 21 passed in 0.20s ==============================
+============================== 24 passed in 0.27s ==============================
 ```
 
 ---

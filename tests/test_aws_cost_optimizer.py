@@ -17,6 +17,7 @@ from aws_cost_optimizer.scanners.lambda_func import LambdaScanner
 from aws_cost_optimizer.scanners.rds import RDSScanner
 from aws_cost_optimizer.scanners.s3 import S3Scanner
 from aws_cost_optimizer.scanners.vpc import VPCScanner
+from aws_cost_optimizer.scanners.dynamodb import DynamoDBScanner
 
 
 def test_finding_to_dict():
@@ -1564,3 +1565,170 @@ def test_s3_scanner_small_object_guard():
     assert "small-object bucket" in f_small.issue
     assert "Standard-IA minimum billable size is 128 KB" in f_small.issue
     assert "Avoid transitioning to Standard-IA" in f_small.recommendation
+
+
+def test_dynamodb_scanner_idle_provisioned_capacity():
+    session = MagicMock()
+    mock_ddb = MagicMock()
+    mock_cw = MagicMock()
+
+    scanner = DynamoDBScanner()
+    scanner.get_client = lambda s, service, r="us-east-1": mock_ddb if service == "dynamodb" else mock_cw
+
+    # List 1 table
+    mock_ddb_paginator = MagicMock()
+    mock_ddb_paginator.paginate.return_value = [{"TableNames": ["idle-app-table"]}]
+    mock_ddb.get_paginator.return_value = mock_ddb_paginator
+
+    # Describe table: PROVISIONED with 50 RCU and 50 WCU
+    mock_ddb.describe_table.return_value = {
+        "Table": {
+            "TableName": "idle-app-table",
+            "TableArn": "arn:aws:dynamodb:us-east-1:123:table/idle-app-table",
+            "BillingModeSummary": {"BillingMode": "PROVISIONED"},
+            "ProvisionedThroughput": {"ReadCapacityUnits": 50, "WriteCapacityUnits": 50},
+            "TableSizeBytes": 1024 * 1024 * 1024,  # 1 GB
+            "ItemCount": 1000,
+            "TableClassSummary": {"TableClass": "STANDARD"},
+        }
+    }
+    mock_ddb.list_tags_of_resource.return_value = {"Tags": []}
+    mock_ddb.describe_continuous_backups.return_value = {"ContinuousBackupsDescription": {}}
+    mock_ddb.describe_time_to_live.return_value = {"TimeToLiveDescription": {"TimeToLiveStatus": "ENABLED"}}
+
+    # CloudWatch metrics: 0 reads and 0 writes
+    mock_cw_paginator = MagicMock()
+    mock_cw_paginator.paginate.return_value = [
+        {
+            "MetricDataResults": [
+                {"Id": "tr_0", "Values": [0.0]},
+                {"Id": "tw_0", "Values": [0.0]},
+            ]
+        }
+    ]
+    mock_cw.get_paginator.return_value = mock_cw_paginator
+
+    findings = scanner.scan(session, "us-east-1")
+    assert len(findings) == 1
+
+    f = findings[0]
+    assert f.severity == Severity.HIGH
+    assert "Underutilized Provisioned DynamoDB table" in f.issue
+    assert "Switch table capacity mode from PROVISIONED to PAY_PER_REQUEST" in f.recommendation
+    assert f.estimated_monthly_saving == 28.47
+
+
+def test_dynamodb_scanner_stale_gsi_and_pitr():
+    session = MagicMock()
+    mock_ddb = MagicMock()
+    mock_cw = MagicMock()
+
+    scanner = DynamoDBScanner()
+    scanner.get_client = lambda s, service, r="us-east-1": mock_ddb if service == "dynamodb" else mock_cw
+
+    mock_ddb_paginator = MagicMock()
+    mock_ddb_paginator.paginate.return_value = [{"TableNames": ["dev-users-table"]}]
+    mock_ddb.get_paginator.return_value = mock_ddb_paginator
+
+    # Describe table: On-demand with a GSI and non-prod name
+    mock_ddb.describe_table.return_value = {
+        "Table": {
+            "TableName": "dev-users-table",
+            "TableArn": "arn:aws:dynamodb:us-east-1:123:table/dev-users-table",
+            "BillingModeSummary": {"BillingMode": "PAY_PER_REQUEST"},
+            "TableSizeBytes": 100 * (1024**3),  # 100 GB
+            "ItemCount": 500000,
+            "TableClassSummary": {"TableClass": "STANDARD"},
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "email-index",
+                    "ProvisionedThroughput": {"ReadCapacityUnits": 20, "WriteCapacityUnits": 20},
+                }
+            ],
+        }
+    }
+    mock_ddb.list_tags_of_resource.return_value = {
+        "Tags": [{"Key": "Environment", "Value": "dev"}]
+    }
+
+    # PITR enabled on dev table (100 GB * $0.20/GB = $20.00/mo)
+    mock_ddb.describe_continuous_backups.return_value = {
+        "ContinuousBackupsDescription": {
+            "PointInTimeRecoveryDescription": {"PointInTimeRecoveryStatus": "ENABLED"}
+        }
+    }
+    mock_ddb.describe_time_to_live.return_value = {"TimeToLiveDescription": {"TimeToLiveStatus": "ENABLED"}}
+
+    # GSI has 0 read units consumed over 14 days
+    mock_cw_paginator = MagicMock()
+    mock_cw_paginator.paginate.return_value = [
+        {
+            "MetricDataResults": [
+                {"Id": "tr_0", "Values": [1000.0]},
+                {"Id": "tw_0", "Values": [1000.0]},
+                {"Id": "gsi_1", "Values": [0.0]},  # Stale GSI
+            ]
+        }
+    ]
+    mock_cw.get_paginator.return_value = mock_cw_paginator
+
+    findings = scanner.scan(session, "us-east-1")
+
+    # Should find stale GSI and PITR on dev table
+    f_gsi = next((f for f in findings if "email-index" in f.resource_id), None)
+    assert f_gsi is not None
+    assert "Unused Global Secondary Index" in f_gsi.issue
+    assert f_gsi.estimated_monthly_saving == 11.39
+
+    f_pitr = next((f for f in findings if "Point-in-Time Recovery" in f.issue), None)
+    assert f_pitr is not None
+    assert f_pitr.estimated_monthly_saving == 20.00
+    assert "Disable Point-in-Time Recovery on non-production table" in f_pitr.recommendation
+
+
+def test_dynamodb_scanner_standard_ia_and_ttl():
+    session = MagicMock()
+    mock_ddb = MagicMock()
+    mock_cw = MagicMock()
+
+    scanner = DynamoDBScanner()
+    scanner.get_client = lambda s, service, r="us-east-1": mock_ddb if service == "dynamodb" else mock_cw
+
+    mock_ddb_paginator = MagicMock()
+    mock_ddb_paginator.paginate.return_value = [{"TableNames": ["prod-audit-logs"]}]
+    mock_ddb.get_paginator.return_value = mock_ddb_paginator
+
+    # 100 GB audit log table in STANDARD class with TTL DISABLED
+    mock_ddb.describe_table.return_value = {
+        "Table": {
+            "TableName": "prod-audit-logs",
+            "TableArn": "arn:aws:dynamodb:us-east-1:123:table/prod-audit-logs",
+            "BillingModeSummary": {"BillingMode": "PAY_PER_REQUEST"},
+            "TableSizeBytes": 100 * (1024**3),  # 100 GB
+            "ItemCount": 2000000,
+            "TableClassSummary": {"TableClass": "STANDARD"},
+        }
+    }
+    mock_ddb.list_tags_of_resource.return_value = {"Tags": []}
+    mock_ddb.describe_continuous_backups.return_value = {"ContinuousBackupsDescription": {}}
+    mock_ddb.describe_time_to_live.return_value = {
+        "TimeToLiveDescription": {"TimeToLiveStatus": "DISABLED"}
+    }
+
+    mock_cw_paginator = MagicMock()
+    mock_cw_paginator.paginate.return_value = []
+    mock_cw.get_paginator.return_value = mock_cw_paginator
+
+    findings = scanner.scan(session, "us-east-1")
+
+    # Should recommend Standard-IA 60% discount ($15.00/mo saving on 100 GB)
+    f_ia = next((f for f in findings if "STANDARD storage class" in f.issue), None)
+    assert f_ia is not None
+    assert f_ia.estimated_monthly_saving == 15.00
+    assert "DynamoDB Standard-IA (Infrequent Access) to save 60% on storage" in f_ia.recommendation
+
+    # Should recommend enabling TTL for audit log table
+    f_ttl = next((f for f in findings if "Time to Live (TTL) DISABLED" in f.issue), None)
+    assert f_ttl is not None
+    assert f_ttl.estimated_monthly_saving == 0.0
+    assert "Configure a TTL attribute" in f_ttl.recommendation

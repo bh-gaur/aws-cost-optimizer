@@ -9,6 +9,7 @@ from aws_cost_optimizer.scanners.s3 import S3Scanner
 from aws_cost_optimizer.scanners.lambda_func import LambdaScanner
 from aws_cost_optimizer.scanners.cloudwatch import CloudWatchScanner
 from aws_cost_optimizer.scanners.kms import KMSScanner
+from aws_cost_optimizer.scanners.dynamodb import DynamoDBScanner
 
 ALL_SCANNERS: Dict[str, Type[BaseScanner]] = {
     "ec2": EC2Scanner,
@@ -20,6 +21,7 @@ ALL_SCANNERS: Dict[str, Type[BaseScanner]] = {
     "lambda": LambdaScanner,
     "cloudwatch": CloudWatchScanner,
     "kms": KMSScanner,
+    "dynamodb": DynamoDBScanner,
 }
 
 

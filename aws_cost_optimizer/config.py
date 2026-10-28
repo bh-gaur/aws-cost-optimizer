@@ -141,5 +141,14 @@ class CostConfig:
     KMS_LOOKBACK_DAYS: int = int(os.getenv("AICO_KMS_LOOKBACK_DAYS", "90"))
     KMS_MAX_CLOUDTRAIL_PAGES: int = int(os.getenv("AICO_KMS_CT_PAGES", "3"))
 
+    # --- DynamoDB ---
+    DYNAMODB_PROVISIONED_RCU_HOURLY: float = 0.00013  # ~$0.095/RCU-month
+    DYNAMODB_PROVISIONED_WCU_HOURLY: float = 0.00065  # ~$0.475/WCU-month
+    DYNAMODB_PITR_COST_PER_GB: float = 0.20  # $/GB-month for continuous backups
+    DYNAMODB_STANDARD_STORAGE_PER_GB: float = 0.25  # $/GB-month
+    DYNAMODB_IA_STORAGE_PER_GB: float = 0.10  # $/GB-month (Standard-IA 60% discount)
+    DYNAMODB_IDLE_UTILIZATION_THRESHOLD: float = float(os.getenv("AICO_DYNAMODB_IDLE_UTIL", "0.05"))
+    DYNAMODB_MIN_MONTHLY_SAVINGS: float = float(os.getenv("AICO_DYNAMODB_MIN_SAVINGS", "1.00"))
+
 
 CONFIG = CostConfig()
