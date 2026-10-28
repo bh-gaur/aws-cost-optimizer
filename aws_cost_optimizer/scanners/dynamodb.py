@@ -27,10 +27,10 @@ Comprehensive Audit Areas:
    - Detects CloudFormation managed tables ('aws:cloudformation:stack-name') and advises template updates.
 """
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, timezone
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import boto3

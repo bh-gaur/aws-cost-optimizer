@@ -35,8 +35,8 @@ Key Capabilities & Flaw Mitigations:
      Extended Support -> gp3 -> Upgrades), avoiding overlapping double counting.
 """
 
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
 
 import boto3

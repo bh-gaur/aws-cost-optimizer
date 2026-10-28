@@ -1,6 +1,7 @@
 import csv
 import json
 from typing import List
+
 from aws_cost_optimizer.models import Finding
 
 

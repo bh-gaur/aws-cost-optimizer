@@ -10,6 +10,7 @@ Renders rich, readable, non-truncated visual reports with:
 
 from collections import defaultdict
 from typing import List
+
 from aws_cost_optimizer.models import Finding, Severity
 
 # Severity Display Metadata: (Color, Icon, Priority Order)

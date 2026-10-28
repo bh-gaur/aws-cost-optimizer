@@ -2,6 +2,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Generator, List, Optional, Set, Tuple
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -96,7 +97,6 @@ class EC2Scanner(BaseScanner):
         # 5. Evaluate instances with guard checks and double-counting prevention
         for inst in all_instances:
             instance_id = inst["InstanceId"]
-            instance_type = inst.get("InstanceType", "")
             state = inst.get("State", {}).get("Name", "")
             tags = {t.get("Key", ""): t.get("Value", "") for t in inst.get("Tags", [])}
 

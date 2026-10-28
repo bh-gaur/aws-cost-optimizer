@@ -1,14 +1,14 @@
 import os
 import tempfile
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from aws_cost_optimizer.config import CONFIG
 from aws_cost_optimizer.models import Finding, Severity
 from aws_cost_optimizer.price_book import PriceBook
 from aws_cost_optimizer.reporters.console import print_console_report
 from aws_cost_optimizer.reporters.csv_report import export_to_csv, export_to_json
 from aws_cost_optimizer.scanners.cloudwatch import CloudWatchScanner
+from aws_cost_optimizer.scanners.dynamodb import DynamoDBScanner
 from aws_cost_optimizer.scanners.ebs import EBSScanner
 from aws_cost_optimizer.scanners.ec2 import EC2Scanner, _parse_stopped_date
 from aws_cost_optimizer.scanners.elb import ELBScanner
@@ -17,7 +17,6 @@ from aws_cost_optimizer.scanners.lambda_func import LambdaScanner
 from aws_cost_optimizer.scanners.rds import RDSScanner
 from aws_cost_optimizer.scanners.s3 import S3Scanner
 from aws_cost_optimizer.scanners.vpc import VPCScanner
-from aws_cost_optimizer.scanners.dynamodb import DynamoDBScanner
 
 
 def test_finding_to_dict():
@@ -482,7 +481,7 @@ def test_kms_scanner_skip_aws_managed_and_evidence_of_use():
             raise ClientError({"Error": {"Code": "AccessDeniedException", "Message": "Denied"}}, "DescribeKey")
         if KeyId == "key-aws-managed":
             raise AssertionError("AWS-managed keys should be skipped BEFORE describe_key!")
-        
+
         state_map = {
             "key-pending-del": ("PendingDeletion", False),
             "key-disabled": ("Disabled", False),

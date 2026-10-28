@@ -1,15 +1,16 @@
 from typing import Dict, List, Type
+
 from aws_cost_optimizer.scanners.base import BaseScanner
-from aws_cost_optimizer.scanners.ec2 import EC2Scanner
+from aws_cost_optimizer.scanners.cloudwatch import CloudWatchScanner
+from aws_cost_optimizer.scanners.dynamodb import DynamoDBScanner
 from aws_cost_optimizer.scanners.ebs import EBSScanner
-from aws_cost_optimizer.scanners.vpc import VPCScanner
+from aws_cost_optimizer.scanners.ec2 import EC2Scanner
 from aws_cost_optimizer.scanners.elb import ELBScanner
+from aws_cost_optimizer.scanners.kms import KMSScanner
+from aws_cost_optimizer.scanners.lambda_func import LambdaScanner
 from aws_cost_optimizer.scanners.rds import RDSScanner
 from aws_cost_optimizer.scanners.s3 import S3Scanner
-from aws_cost_optimizer.scanners.lambda_func import LambdaScanner
-from aws_cost_optimizer.scanners.cloudwatch import CloudWatchScanner
-from aws_cost_optimizer.scanners.kms import KMSScanner
-from aws_cost_optimizer.scanners.dynamodb import DynamoDBScanner
+from aws_cost_optimizer.scanners.vpc import VPCScanner
 
 ALL_SCANNERS: Dict[str, Type[BaseScanner]] = {
     "ec2": EC2Scanner,

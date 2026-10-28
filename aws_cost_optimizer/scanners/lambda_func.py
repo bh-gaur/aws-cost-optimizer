@@ -30,9 +30,9 @@ Key Capabilities & Flaw Mitigations:
      emitting a single consolidated finding per function without double counting.
 """
 
-from datetime import datetime, timedelta, timezone
 import logging
-from typing import Any, Dict, Generator, List, Optional, Set, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import boto3
 from botocore.exceptions import ClientError
@@ -172,6 +172,7 @@ class LambdaScanner(BaseScanner):
                 "timeout_sec": timeout,
                 "ephemeral_storage_mb": ephemeral_storage,
                 "invocations_30d": round(invocations_30d, 1),
+                "errors_30d": round(errors_30d, 1),
                 "duration_sum_sec_30d": round(duration_sum_ms_30d / 1000.0, 1),
                 "gb_seconds_30d": round(gb_seconds_30d, 2),
                 "monthly_compute_cost": round(monthly_compute_cost, 2),

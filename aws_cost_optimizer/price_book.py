@@ -7,7 +7,8 @@ caching and graceful offline fallback.
 
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
+
 import boto3
 from botocore.exceptions import ClientError
 

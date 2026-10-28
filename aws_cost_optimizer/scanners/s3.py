@@ -39,11 +39,10 @@ Comprehensive Audit Areas:
    - Early-deletion trap detection in existing lifecycle rules (expiration shorter than class minimum duration).
 """
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, timezone
 import fnmatch
 import logging
-import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import boto3

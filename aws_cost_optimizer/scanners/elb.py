@@ -28,10 +28,10 @@ Production Features:
 - Deletion protection audit and 7-day creation grace period.
 """
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-import logging
-from typing import Any, Dict, Generator, List, Optional, Set, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import boto3
 from botocore.exceptions import ClientError

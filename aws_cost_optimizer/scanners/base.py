@@ -1,9 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generator, List
+
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+
 from aws_cost_optimizer.config import CONFIG
 from aws_cost_optimizer.models import Finding
 

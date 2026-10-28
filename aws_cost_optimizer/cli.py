@@ -1,16 +1,17 @@
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple
+
 import boto3
-from botocore.exceptions import ClientError, ProfileNotFound
+from botocore.exceptions import ProfileNotFound
 
 from aws_cost_optimizer.config import CONFIG
 from aws_cost_optimizer.models import Finding
-from aws_cost_optimizer.scanners import ALL_SCANNERS, get_available_services, get_scanner
 from aws_cost_optimizer.reporters.console import print_console_report
 from aws_cost_optimizer.reporters.csv_report import export_to_csv, export_to_json
+from aws_cost_optimizer.scanners import ALL_SCANNERS, get_available_services, get_scanner
 
 logger = logging.getLogger("aws_cost_optimizer")
 

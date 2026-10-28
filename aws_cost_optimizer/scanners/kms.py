@@ -29,10 +29,10 @@ Key Cost Characteristics & Flaw Mitigations:
    - Flags Custom Key Stores (CloudHSM clusters costing hundreds of dollars/month).
 """
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-import logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 from botocore.exceptions import ClientError
@@ -138,7 +138,6 @@ class KMSScanner(BaseScanner):
                     alias_label = ", ".join(aliases) if aliases else (desc[:40] if desc else key_id[:16])
 
                     # Multi-Region & Custom Key Store details
-                    multi_region = meta.get("MultiRegion", False)
                     mr_config = meta.get("MultiRegionConfiguration", {})
                     is_replica = mr_config.get("MultiRegionKeyType") == "REPLICA"
                     custom_store_id = meta.get("CustomKeyStoreId")

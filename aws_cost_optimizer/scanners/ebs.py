@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Generator, List, Optional, Set, Tuple
+from typing import Any, Dict, Generator, List, Set, Tuple
+
 import boto3
 from botocore.exceptions import ClientError
 
